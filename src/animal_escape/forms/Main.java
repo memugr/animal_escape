@@ -101,25 +101,33 @@ public class Main {
         botoJugar.setFocusPainted(false);
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(botoJugar);
+        botoJugar.addActionListener(new JugarListener());
+    }
 
-        botoJugar.addActionListener(e -> {
+    private class JugarListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
             String nom = textNom.getText().trim();
 
             if (nom.isEmpty()) {
                 JOptionPane.showMessageDialog(mainPanel,
                         "Si us plau, introdueix un nom d'usuari.",
                         "Nom buit", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+            } else {
+                JFrame frameJoc = new JFrame("Animal Escape");
+                frameJoc.setContentPane(new Game(nom, personatgeSeleccionat).getGamePanel());
+                frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                frameJoc.pack();
+                frameJoc.setLocationRelativeTo(null);
 
-            JFrame frameJoc = new JFrame("Animal Escape");
-            frameJoc.setContentPane(new Game(nom, personatgeSeleccionat).getGamePanel());
-            frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frameJoc.pack();
-            frameJoc.setLocationRelativeTo(null);
-            frameJoc.setVisible(true);
-            SwingUtilities.getWindowAncestor(mainPanel).dispose();
-        });
+                Toolkit pantalla = Toolkit.getDefaultToolkit();
+                Image img = pantalla.getImage("src/animal_escape/img/isotip.png");
+                frameJoc.setIconImage(img);
+
+                frameJoc.setVisible(true);
+                SwingUtilities.getWindowAncestor(mainPanel).dispose();
+            }
+        }
     }
 
     private class PersonatgeListener implements ActionListener {
