@@ -7,8 +7,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.Objects;
 
 public class Main {
@@ -218,15 +216,23 @@ public class Main {
     }
 
     private static Font carregarFont(String ruta, float mida) {
+        Font resultat;
+
         try {
-            Font font = Font.createFont(Font.TRUETYPE_FONT,
-                    Objects.requireNonNull(Main.class.getResourceAsStream(ruta)));
-            return font.deriveFont(mida);
+            Font font = Font.createFont(
+                    Font.TRUETYPE_FONT,
+                    Objects.requireNonNull(Main.class.getResourceAsStream(ruta))
+            );
+            resultat = font.deriveFont(mida);
+
         } catch (Exception e) {
             System.out.println("No s'ha pogut carregar la font: " + ruta);
-            return new Font("Arial", Font.PLAIN, (int) mida);
+            resultat = new Font("Arial", Font.PLAIN, (int) mida);
         }
+
+        return resultat;
     }
+
 
     public static void main(String[] args) {
         JFrame frame = new JFrame("Inici");
