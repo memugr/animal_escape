@@ -6,6 +6,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.Objects;
 
 public class Main {
@@ -118,6 +121,36 @@ public class Main {
                         "Si us plau, introdueix un nom d'usuari.",
                         "Nom buit", JOptionPane.WARNING_MESSAGE);
             } else {
+                //Guardar usuari i personatge a la base de dades
+                String db_url = "jdbc:mysql://localhost:3306/animal_escape";
+                String db_user = "root";
+                String db_password = "mysql";
+
+                String queryInsert = "INSERT INTO usuaris (nom, data_registre) VALUES (?, CURDATE())";
+                String queryUserCheck = "SELECT id_usuari FROM usuaris WHERE nom = ?";
+
+                try {
+                    Connection conn = DriverManager.getConnection(db_url, db_user, db_password);
+                    PreparedStatement psCheck =  conn.prepareStatement(queryUserCheck);
+                    psCheck.setString(1, nom);
+                    ResultSet rs = psCheck.executeQuery();
+
+                    if (rs.next()) {
+                        System.out.println("Usuari " + nom + " ja està registrat");
+                    } else {
+                        PreparedStatement ps = conn.prepareStatement(queryInsert);
+                        ps.setString(1, nom);
+                        ps.executeUpdate();
+                        ps.close();
+                        System.out.println("Usuari " + nom + " registrat a la base de dades correctament");
+                    }
+
+                    conn.close();
+                } catch (SQLException ex) {
+                    System.out.println("Error en registrar Usuari " + nom);
+                }
+
+                //Obrir el joc
                 JFrame frameJoc = new JFrame("Animal Escape");
                 frameJoc.setContentPane(new Game(nom, personatgeSeleccionat).getGamePanel());
                 frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
