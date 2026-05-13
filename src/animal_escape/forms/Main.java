@@ -18,6 +18,10 @@ public class Main {
     private JLabel labelInstruccions;
     private String personatgeSeleccionat = "gat"; // per defecte
 
+    public JPanel getMainPanel() {
+        return mainPanel;
+    }
+
     public Main() {
         mainPanel.setPreferredSize(new Dimension(600, 400));
         mainPanel.setBackground(new Color(244, 231, 218));

@@ -28,12 +28,22 @@ public class Game {
     private boolean amunt, avall, esquerra, dreta;
     private boolean guanyat, perdut;
     private boolean tocantObstacle = false;
-    private Image imgJugador, imgMonstre, imgMoneda, imgVida;
+
+    private ImageIcon iconMonstreD, iconMonstreE, iconMonstreA, iconMonstreB;
+    private ImageIcon iconJugador, iconMoneda, iconVida;
+
     private List<Rectangle> obstacles = new ArrayList<>();
     private List<Point> monedes = new ArrayList<>();
     private Random random = new Random();
     private Timer timerJoc, timerMonstre;
-    private Font fontHUD, fontFinalTitol, fontFinalText;
+    private Font fontHUD;
+
+    private JLabel labelJugador;
+    private JLabel labelMonstre;
+    private JLabel labelPunts;
+    private List<JLabel> labelsVides = new ArrayList<>();
+    private List<JLabel> labelsMonedes = new ArrayList<>();
+    private List<JPanel> panelsObstacles = new ArrayList<>();
 
     public Game(String nom, String personatge) {
         this.nom = nom;
@@ -42,20 +52,14 @@ public class Game {
         carregarImatgesFonts();
         generarObstacles();
         generarMonedes();
+        showPanel();
 
-        gamePanel = new JPanel() {
+        timerJoc = new Timer(50, new ActionListener() {
             @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                dibuixar((Graphics2D) g);
+            public void actionPerformed(ActionEvent e) {
+                actualitzar();
             }
-        };
-        gamePanel.setPreferredSize(new Dimension(AMPLADA, ALCADA));
-        gamePanel.setBackground(new Color(244, 231, 218));
-        gamePanel.setFocusable(true);
-        gamePanel.addKeyListener(new MovimentListener());
-
-        timerJoc = new Timer(50, e -> actualitzar());
+        });
         timerJoc.start();
 
         iniciarTimerMonstre();
@@ -65,7 +69,18 @@ public class Game {
         return new ImageIcon(Objects.requireNonNull(getClass().getResource(ruta))).getImage();
     }
 
+    private ImageIcon imgIconEscalat(Image imatge, int w, int h) {
+        return new ImageIcon(imatge.getScaledInstance(w, h, Image.SCALE_SMOOTH));
+    }
+
+    private ImageIcon imgIconGif(String ruta) {
+        ImageIcon icon = new ImageIcon(Objects.requireNonNull(getClass().getResource(ruta)));
+        icon.setImage(icon.getImage().getScaledInstance(Game.MIDA_M, Game.MIDA_M, Image.SCALE_DEFAULT));
+        return icon;
+    }
+
     private void carregarImatgesFonts() {
+        Image imgJugador;
         switch (personatge) {
             case "gos":
                 imgJugador = img("/animal_escape/img/gos.png");
@@ -77,12 +92,88 @@ public class Game {
                 imgJugador = img("/animal_escape/img/gat.png");
                 break;
         }
-        imgMonstre = img("/animal_escape/img/skeleton_right.gif");
-        imgMoneda = img("/animal_escape/img/dollar.png");
-        imgVida = img("/animal_escape/img/heart.png");
+
+        iconJugador  = imgIconEscalat(imgJugador, MIDA_P, MIDA_P);
+        iconMonstreD = imgIconGif("/animal_escape/img/skeleton_right.gif");
+        iconMonstreE = imgIconGif("/animal_escape/img/skeleton_left.gif");
+        iconMonstreA = imgIconGif("/animal_escape/img/skeleton_up.gif");
+        iconMonstreB = imgIconGif("/animal_escape/img/skeleton_down.gif");
+        Image imgMoneda = img("/animal_escape/img/dollar.png");
+        iconMoneda = imgIconEscalat(imgMoneda, MIDA_MONEDA, MIDA_MONEDA);
+        Image imgVida = img("/animal_escape/img/heart.png");
+        iconVida = imgIconEscalat(imgVida, 22, 22);
         fontHUD = carregarFont("/animal_escape/fonts/Inter.ttf", 16f);
-        fontFinalTitol = carregarFont("/animal_escape/fonts/SpaceGrotesk.ttf", 32f).deriveFont(Font.BOLD);
-        fontFinalText = carregarFont("/animal_escape/fonts/Inter.ttf", 18f);
+    }
+
+    private void showPanel() {
+        gamePanel = new JPanel(null);
+        gamePanel.setPreferredSize(new Dimension(AMPLADA, ALCADA));
+        gamePanel.setBackground(new Color(244, 231, 218));
+        gamePanel.setFocusable(true);
+        gamePanel.addKeyListener(new MovimentListener());
+
+        // Obstacles
+        for (Rectangle obs : obstacles) {
+            JPanel p = new JPanel();
+            p.setBackground(new Color(180, 100, 100));
+            p.setBounds(obs.x, obs.y, obs.width, obs.height);
+            gamePanel.add(p);
+            panelsObstacles.add(p);
+        }
+
+        // Monedes
+        for (Point m : monedes) {
+            JLabel lbl = new JLabel(iconMoneda);
+            lbl.setBounds(m.x, m.y, MIDA_MONEDA, MIDA_MONEDA);
+            gamePanel.add(lbl);
+            labelsMonedes.add(lbl);
+        }
+
+        // Meta
+        JPanel panelMeta = new JPanel();
+        panelMeta.setBackground(new Color(100, 200, 100));
+        panelMeta.setBounds(AMPLADA - 12, 0, 12, ALCADA);
+        gamePanel.add(panelMeta);
+
+        // Jugador
+        labelJugador = new JLabel(iconJugador);
+        labelJugador.setBounds(jugadorX, jugadorY, MIDA_P, MIDA_P);
+        gamePanel.add(labelJugador);
+
+        // Monstre
+        labelMonstre = new JLabel(iconMonstreD);
+        labelMonstre.setBounds(monstreX, monstreY, MIDA_M, MIDA_M);
+        gamePanel.add(labelMonstre);
+
+        // HUD - Nom
+        JLabel labelNom = new JLabel(nom);
+        labelNom.setFont(fontHUD);
+        labelNom.setForeground(new Color(24, 15, 47));
+        labelNom.setBounds(10, 5, 200, 20);
+        gamePanel.add(labelNom);
+
+        // HUD - Punts
+        labelPunts = new JLabel("Punts: " + punts);
+        labelPunts.setFont(fontHUD);
+        labelPunts.setForeground(new Color(24, 15, 47));
+        labelPunts.setBounds(10, 30, 200, 20);
+        gamePanel.add(labelPunts);
+
+        // HUD - Vides
+        actualitzarVides();
+    }
+
+    private void actualitzarVides() {
+        for (JLabel v : labelsVides) gamePanel.remove(v);
+        labelsVides.clear();
+        for (int i = 0; i < vides; i++) {
+            JLabel lbl = new JLabel(iconVida);
+            lbl.setBounds(10 + i * 28, 55, 22, 22);
+            gamePanel.add(lbl);
+            labelsVides.add(lbl);
+        }
+        gamePanel.revalidate();
+        gamePanel.repaint();
     }
 
     private void generarObstacles() {
@@ -143,23 +234,24 @@ public class Game {
             switch (direccio) {
                 case 0:
                     nouY -= pas;
-                    imgMonstre = img("/animal_escape/img/skeleton_up.gif");
+                    labelMonstre.setIcon(iconMonstreA);
                     break;
                 case 1:
                     nouY += pas;
-                    imgMonstre = img("/animal_escape/img/skeleton_down.gif");
+                    labelMonstre.setIcon(iconMonstreB);
                     break;
                 case 2:
                     nouX -= pas;
-                    imgMonstre = img("/animal_escape/img/skeleton_left.gif");
+                    labelMonstre.setIcon(iconMonstreE);
                     break;
                 case 3:
                     nouX += pas;
-                    imgMonstre = img("/animal_escape/img/skeleton_right.gif");
+                    labelMonstre.setIcon(iconMonstreD);
                     break;
             }
             monstreX = Math.max(0, Math.min(nouX, AMPLADA - MIDA_M));
             monstreY = Math.max(0, Math.min(nouY, ALCADA - MIDA_M));
+            labelMonstre.setBounds(monstreX, monstreY, MIDA_M, MIDA_M);
         }
     }
 
@@ -201,11 +293,13 @@ public class Game {
             if (!tocantObstacle) {
                 punts = Math.max(0, punts - 1);
                 tocantObstacle = true;
+                labelPunts.setText("Punts: " + punts);
             }
         } else {
             tocantObstacle = false;
             jugadorX = nouX;
             jugadorY = nouY;
+            labelJugador.setBounds(jugadorX, jugadorY, MIDA_P, MIDA_P);
         }
     }
 
@@ -215,12 +309,20 @@ public class Game {
         // Monstre
         if (rJ.intersects(new Rectangle(monstreX, monstreY, MIDA_M, MIDA_M))) {
             vides--;
+            actualitzarVides();
             if (vides <= 0) {
                 perdut = true;
                 timerJoc.stop();
                 timerMonstre.stop();
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        mostrarDialogFinal();
+                    }
+                });
             } else {
                 jugadorX = 20; jugadorY = 280;
+                labelJugador.setBounds(jugadorX, jugadorY, MIDA_P, MIDA_P);
             }
         }
 
@@ -229,66 +331,68 @@ public class Game {
         for (Point moneda : new ArrayList<>(monedes)) {
             if (rJ.intersects(new Rectangle(moneda.x, moneda.y, MIDA_MONEDA, MIDA_MONEDA))) {
                 punts += 2;
+                labelPunts.setText("Punts: " + punts);
                 recollides.add(moneda);
             }
         }
-        monedes.removeAll(recollides);
-        for (int i = 0; i < recollides.size(); i++) {
+        for (Point m : recollides) {
+            int index = monedes.indexOf(m);
+            if (index >= 0 && index < labelsMonedes.size()) {
+                gamePanel.remove(labelsMonedes.get(index));
+                labelsMonedes.remove(index);
+                monedes.remove(index);
+            }
             afegirMoneda();
+            Point nova = monedes.getLast();
+            JLabel lbl = new JLabel(iconMoneda);
+            lbl.setBounds(nova.x, nova.y, MIDA_MONEDA, MIDA_MONEDA);
+            gamePanel.add(lbl);
+            labelsMonedes.add(lbl);
         }
+        gamePanel.revalidate();
 
         // Meta
         if (jugadorX >= AMPLADA - MIDA_P) {
             guanyat = true;
             timerJoc.stop();
             timerMonstre.stop();
+
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    mostrarDialogFinal();
+                }
+            });
         }
     }
 
-    private void dibuixar(Graphics2D g) {
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    private void mostrarDialogFinal() {
+        String missatge = guanyat ? "Has guanyat!" : "Has perdut!";
+        String[] opcions = {"Tornar a jugar", "Tornar a l'inici"};
+        int resposta = JOptionPane.showOptionDialog(gamePanel,
+                missatge + "\nPunts: " + punts,
+                "Fi del joc",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null, opcions, opcions[0]);
 
-        // Obstacles
-        g.setColor(new Color(180, 100, 100));
-        for (Rectangle obs : obstacles) {
-            g.fillRoundRect(obs.x, obs.y, obs.width, obs.height, 8, 8);
-        };
-
-        // Monedes
-        for (Point m : monedes) {
-            g.drawImage(imgMoneda, m.x, m.y, MIDA_MONEDA, MIDA_MONEDA, gamePanel);
-        };
-
-        // Jugador i monstre
-        g.drawImage(imgJugador, jugadorX, jugadorY, MIDA_P, MIDA_P, gamePanel);
-        g.drawImage(imgMonstre, monstreX, monstreY, MIDA_M, MIDA_M, gamePanel);
-
-        // Meta
-        g.setColor(new Color(100, 200, 100, 180));
-        g.fillRect(AMPLADA - 12, 0, 12, ALCADA);
-        g.setColor(new Color(50, 150, 50));
-        g.setFont(new Font("Arial", Font.BOLD, 12));
-        g.drawString("META", AMPLADA - 50, ALCADA / 2);
-
-        // HUD
-        g.setColor(new Color(24, 15, 47));
-        g.setFont(fontHUD);
-        g.drawString(nom, 10, 20);
-        g.drawString("Punts: " + punts, 10, 45);
-        for (int i = 0; i < vides; i++) {
-            g.drawImage(imgVida, 10 + i * 28, 55, 22, 22, gamePanel);
-        }
-
-        // Pantalla final
-        if (guanyat || perdut) {
-            g.setColor(new Color(24, 15, 47, 160));
-            g.fillRect(0, 0, AMPLADA, ALCADA);
-            g.setColor(Color.WHITE);
-            g.setFont(fontFinalTitol);
-            g.drawString(guanyat ? "Has guanyat!" : "Has perdut!", AMPLADA / 2 - 150, ALCADA / 2 - 20);
-            g.setFont(fontFinalText);
-            g.drawString("Punts: " + punts, AMPLADA / 2 - 45, ALCADA / 2 + 20);
-            g.drawString("Prem R per tornar a jugar", AMPLADA / 2 - 130, ALCADA / 2 + 55);
+        if (resposta == 0) {
+            JFrame frameJoc = new JFrame("Animal Escape");
+            frameJoc.setContentPane(new Game(nom, personatge).getGamePanel());
+            frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frameJoc.pack();
+            frameJoc.setLocationRelativeTo(null);
+            frameJoc.setVisible(true);
+            SwingUtilities.getWindowAncestor(gamePanel).dispose();
+        } else {
+            JFrame frameInici = new JFrame("Inici");
+            Main main = new Main();
+            frameInici.setContentPane(main.getMainPanel());
+            frameInici.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            frameInici.pack();
+            frameInici.setLocationRelativeTo(null);
+            frameInici.setVisible(true);
+            SwingUtilities.getWindowAncestor(gamePanel).dispose();
         }
     }
 
@@ -334,12 +438,20 @@ public class Game {
     }
 
     private void reiniciar() {
+        gamePanel.removeAll();
+        labelsMonedes.clear();
+        labelsVides.clear();
+        panelsObstacles.clear();
         jugadorX = 20; jugadorY = 280;
         monstreX = 400; monstreY = 280;
         vides = 3; punts = 0;
         guanyat = false; perdut = false;
+        tocantObstacle = false;
         generarObstacles();
         generarMonedes();
+        showPanel();
+        gamePanel.revalidate();
+        gamePanel.repaint();
         timerJoc.start();
         timerMonstre.start();
     }
