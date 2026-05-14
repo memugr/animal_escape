@@ -81,7 +81,6 @@ Animal_Escape/
 │   └── animal_escape/
 │       ├── fonts/
 │       │   ├── Inter.ttf
-│       │   ├── JetBrainsMono.ttf
 │       │   └── SpaceGrotesk.ttf
 │       ├── forms/
 │       │   ├── Game/
