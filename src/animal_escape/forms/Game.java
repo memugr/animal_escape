@@ -3,6 +3,9 @@ package animal_escape.forms;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +24,8 @@ public class Game {
 
     private JPanel gamePanel;
     private String nom, personatge;
+    private int idUsuari;
+    private int idPersonatge;
 
     private int jugadorX = 20, jugadorY = 280;
     private int monstreX = 400, monstreY = 280;
@@ -30,7 +35,7 @@ public class Game {
     private boolean tocantObstacle = false;
 
     private ImageIcon iconMonstreD, iconMonstreE, iconMonstreA, iconMonstreB;
-    private ImageIcon iconJugador, iconMoneda, iconVida;
+    private ImageIcon iconJugador, iconMoneda, iconVida, iconObs;
 
     private List<Rectangle> obstacles = new ArrayList<>();
     private List<Point> monedes = new ArrayList<>();
@@ -43,11 +48,13 @@ public class Game {
     private JLabel labelPunts;
     private List<JLabel> labelsVides = new ArrayList<>();
     private List<JLabel> labelsMonedes = new ArrayList<>();
-    private List<JPanel> panelsObstacles = new ArrayList<>();
+    private List<JLabel> panelsObstacles = new ArrayList<JLabel>();
 
-    public Game(String nom, String personatge) {
+    public Game(String nom, String personatge, int idUsuari, int idPersonatge) {
         this.nom = nom;
         this.personatge = personatge;
+        this.idUsuari = idUsuari;
+        this.idPersonatge = idPersonatge;
 
         carregarImatgesFonts();
         generarObstacles();
@@ -100,6 +107,8 @@ public class Game {
         iconMonstreB = imgIconGif("/animal_escape/img/skeleton_down.gif");
         Image imgMoneda = img("/animal_escape/img/dollar.png");
         iconMoneda = imgIconEscalat(imgMoneda, MIDA_MONEDA, MIDA_MONEDA);
+        Image imgObstacle = img("/animal_escape/img/rock.png");
+        iconObs = imgIconEscalat(imgObstacle, MIDA_OBS, MIDA_OBS);
         Image imgVida = img("/animal_escape/img/heart.png");
         iconVida = imgIconEscalat(imgVida, 22, 22);
         fontHUD = carregarFont("/animal_escape/fonts/Inter.ttf", 16f);
@@ -114,11 +123,10 @@ public class Game {
 
         // Obstacles
         for (Rectangle obs : obstacles) {
-            JPanel p = new JPanel();
-            p.setBackground(new Color(180, 100, 100));
-            p.setBounds(obs.x, obs.y, obs.width, obs.height);
-            gamePanel.add(p);
-            panelsObstacles.add(p);
+            JLabel lblObs = new JLabel(iconObs);
+            lblObs.setBounds(obs.x, obs.y, obs.width, obs.height);
+            gamePanel.add(lblObs);
+            panelsObstacles.add(lblObs);
         }
 
         // Monedes
@@ -310,10 +318,13 @@ public class Game {
         if (rJ.intersects(new Rectangle(monstreX, monstreY, MIDA_M, MIDA_M))) {
             vides--;
             actualitzarVides();
+
             if (vides <= 0) {
                 perdut = true;
                 timerJoc.stop();
                 timerMonstre.stop();
+                guardarPartida();
+
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
                     public void run() {
@@ -335,6 +346,7 @@ public class Game {
                 recollides.add(moneda);
             }
         }
+
         for (Point m : recollides) {
             int index = monedes.indexOf(m);
             if (index >= 0 && index < labelsMonedes.size()) {
@@ -342,6 +354,7 @@ public class Game {
                 labelsMonedes.remove(index);
                 monedes.remove(index);
             }
+
             afegirMoneda();
             Point nova = monedes.getLast();
             JLabel lbl = new JLabel(iconMoneda);
@@ -356,6 +369,7 @@ public class Game {
             guanyat = true;
             timerJoc.stop();
             timerMonstre.stop();
+            guardarPartida();
 
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
@@ -365,6 +379,38 @@ public class Game {
             });
         }
     }
+
+    private void guardarPartida() {
+        String db_url = "jdbc:mysql://localhost:3306/animal_escape";
+        String db_user = "root";
+        String db_password = "mysql";
+
+        String queryInsert = "INSERT INTO partides (id_usuari, id_personatge, monedes, vides_restants, resultat, punts, data_partida) " +
+                "VALUES (?, ?, ?, ?, ?, ?, CURDATE())";
+
+        try {
+            Connection conn = DriverManager.getConnection(db_url, db_user, db_password);
+            PreparedStatement ps = conn.prepareStatement(queryInsert);
+
+            ps.setInt(1, idUsuari);
+            ps.setInt(2, idPersonatge);
+            ps.setInt(3, monedes.size());
+            ps.setInt(4, vides);
+            ps.setString(5, guanyat ? "guanyat" : "perdut");
+            ps.setInt(6, punts);
+
+            ps.executeUpdate();
+            ps.close();
+            conn.close();
+
+            System.out.println("Partida guardada correctament a la base de dades.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error en guardar partida a la base de dades");
+        }
+    }
+
 
     private void mostrarDialogFinal() {
         String missatge = guanyat ? "Has guanyat!" : "Has perdut!";
@@ -378,7 +424,7 @@ public class Game {
 
         if (resposta == 0) {
             JFrame frameJoc = new JFrame("Animal Escape");
-            frameJoc.setContentPane(new Game(nom, personatge).getGamePanel());
+            frameJoc.setContentPane(new Game(nom, personatge, idUsuari, idPersonatge).getGamePanel());
             frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frameJoc.pack();
             frameJoc.setLocationRelativeTo(null);
@@ -389,8 +435,12 @@ public class Game {
             Main main = new Main();
             frameInici.setContentPane(main.getMainPanel());
             frameInici.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            frameInici.addWindowListener(new Main.FrameWindowListener(frameInici));
             frameInici.pack();
             frameInici.setLocationRelativeTo(null);
+            Toolkit pantalla = Toolkit.getDefaultToolkit();
+            Image img = pantalla.getImage("src/animal_escape/img/isotip.png");
+            frameInici.setIconImage(img);
             frameInici.setVisible(true);
             SwingUtilities.getWindowAncestor(gamePanel).dispose();
         }

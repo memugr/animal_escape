@@ -126,6 +126,10 @@ public class Main {
 
                 String queryInsert = "INSERT INTO usuaris (nom, data_registre) VALUES (?, CURDATE())";
                 String queryUserCheck = "SELECT id_usuari FROM usuaris WHERE nom = ?";
+                String queryPers = "SELECT id_personatge FROM personatges WHERE nom = ?";
+
+                int idUsuari = -1;
+                int idPersonatge = -1;
 
                 try {
                     Connection conn = DriverManager.getConnection(db_url, db_user, db_password);
@@ -134,15 +138,33 @@ public class Main {
                     ResultSet rs = psCheck.executeQuery();
 
                     if (rs.next()) {
+                        idUsuari = rs.getInt("id_usuari");
                         System.out.println("Usuari " + nom + " ja està registrat");
                     } else {
-                        PreparedStatement ps = conn.prepareStatement(queryInsert);
+                        PreparedStatement ps = conn.prepareStatement(queryInsert, PreparedStatement.RETURN_GENERATED_KEYS);
                         ps.setString(1, nom);
                         ps.executeUpdate();
+
+                        ResultSet rsKeys = ps.getGeneratedKeys();
+                        if (rsKeys.next()) {
+                            idUsuari = rsKeys.getInt(1);
+                        }
+
+                        psCheck.close();
                         ps.close();
-                        System.out.println("Usuari " + nom + " registrat a la base de dades correctament");
+                        System.out.println("Usuari " + nom + " registrat correctament");
                     }
 
+                    // idPersonatge
+                    PreparedStatement psPers = conn.prepareStatement(queryPers);
+                    psPers.setString(1, personatgeSeleccionat);
+                    ResultSet rsPers = psPers.executeQuery();
+
+                    if (rsPers.next()) {
+                        idPersonatge = rsPers.getInt("id_personatge");
+                    }
+
+                    psPers.close();
                     conn.close();
                 } catch (SQLException ex) {
                     System.out.println("Error en registrar Usuari " + nom);
@@ -150,7 +172,7 @@ public class Main {
 
                 //Obrir el joc
                 JFrame frameJoc = new JFrame("Animal Escape");
-                frameJoc.setContentPane(new Game(nom, personatgeSeleccionat).getGamePanel());
+                frameJoc.setContentPane(new Game(nom, personatgeSeleccionat, idUsuari, idPersonatge).getGamePanel());
                 frameJoc.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                 frameJoc.pack();
                 frameJoc.setLocationRelativeTo(null);
@@ -196,7 +218,7 @@ public class Main {
         seleccionat.setBackground(new Color(124, 114, 149));
     }
 
-    private static class FrameWindowListener extends WindowAdapter {
+    public static class FrameWindowListener extends WindowAdapter {
         private JFrame frame;
 
         public FrameWindowListener(JFrame frame) {
